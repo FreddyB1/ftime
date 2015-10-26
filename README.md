@@ -3,7 +3,7 @@ Unix timestamp conversions and more time functions for PAWN!
 
 #Download
 
-Go to the [releases page](https://github.com/ThreeKingz/ftime/releases/tag/ftime) and download the latest ftime.zip package which includes ftime.dll and ftime.inc
+Go to the [releases page](https://github.com/ThreeKingz/ftime/releases) and download the latest ftime.zip package which includes ftime.dll and ftime.inc
 
 
 #Installation
