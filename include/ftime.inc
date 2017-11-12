@@ -17,9 +17,14 @@ limitations under the License.
 native getdayname(year, month, day, string[], len = sizeof(string));
 native cvstamp2datetime(timestamp, &year, &month, &day, &hour, &minute, &second, GMT);
 native cvdatetime2stamp(&timestamp, year, month, day, hour, minute, second, GMT);
-
+native isleapyear(year);
+stock GetDayName(year, month, day)
+{
+	new day_n[64];
+	getdayname(year, month, day, day_n, sizeof(day_n));
+	return day_n;
+}
 //native cvdatetime2secs(minutes, hours, days, months, years);
 #define cvdatetime2secs(%0,%1,%2,%3,%4) \ 
 	((%0 * 60)+(%1 * 3600) + (%2 * 86400) + (%3 * 2678400) + (%4 * 31556952)) 
 	
-
