@@ -35,7 +35,7 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 {
 	pAMXFunctions = ppData[PLUGIN_DATA_AMX_EXPORTS];
 	logprintf = (logprintf_t)ppData[PLUGIN_DATA_LOGPRINTF];
-	logprintf("	FTIME v1.0 loaded!");
+	logprintf("	FTIME v2.0 loaded!");
 	return 1;
 }
 
@@ -62,16 +62,23 @@ static const unsigned char monthdays[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30,
 #define SECONDS_PER_YEAR	31556952	
 #define NULL				0
 
+bool c_IsLeapYear(int year)
+{
+	if (((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0)) return true;
+	return false;
+}
+
 //Author: @Compuphase:
 //Source available at: https://github.com/compuphase/pawn/blob/master/amx/amxtime.c
 //ThreeKingz: Added GMT parameter.
 void v_stamp2datetime(unsigned long sec1970, int *year, int *month, int *day, int *hour, int *minute, int *second, int GMT)
 {
+	if (GMT > 12 || GMT < -12) return;
 	int days, seconds;
 	/* find the year */
 	for (*year = 1970; ; *year += 1)
 	{
-		days = 365 + ((*year & 0x03) == 0); /* clumsy "leap-year" routine, fails for 2100 */
+		days = 365 + (c_IsLeapYear(*year) != 0);
 		seconds = days * SECONDS_PER_DAY;
 		if ((unsigned long)seconds > sec1970)
 			break;
@@ -107,6 +114,11 @@ void v_stamp2datetime(unsigned long sec1970, int *year, int *month, int *day, in
 			*hour += 24;
 			*day -= 1;
 		}
+		else if (*hour > 24)
+		{
+			*hour -= 24;
+			*day += 1;
+		}
 	}
 	/* find the minute */
 	for (*minute = 0; sec1970 >= SECONDS_PER_MINUTE; *minute += 1)
@@ -121,7 +133,7 @@ int v_datetime2stamp(int year, int month, int day, int hour, int minute, int sec
 {
 	unsigned long sec1970 = 0;
 	for (int y = 1970; y < year; y++)
-		day += (365 + (!(y & 0x03) ? 1 : 0));
+		day += (365 + c_IsLeapYear(y));
 
 	for (int m = 1; m < month; m++)
 		day += monthdays[m - 1];
@@ -144,15 +156,25 @@ int v_getdaynumber(int year, int month, int day)
 //native cvdatetime2stamp(&timestamp, year, month, day, hour, minute, second, GMT = 0);
 static cell AMX_NATIVE_CALL n_cvdatetime2stamp(AMX *amx, cell *params)
 {
+	if (params[8] > 12 || params[8] < -12) //gmt
+	{
+		logprintf("[cvdatetime2stamp] GMT can't be greater than 12 or less than -12.");
+		return 0;
+	}
 	cell* addr = NULL;
 	amx_GetAddr(amx, params[1], &addr);
 	*addr = v_datetime2stamp(params[2], params[3], params[4], params[5], params[6], params[7], params[8]);
-	return 1; 
+	return 1;
 }
 //native cvstamp2datetime(timestamp, &year, &month, &day, &hour, &minute, &second, GMT = -5);
 static cell AMX_NATIVE_CALL n_cvstamp2datetime(AMX *amx, cell *params)
 {
 	if (params[1] == NULL) return 0;
+	if (params[8] > 12 || params[8] < -12) //gmt
+	{
+		logprintf("[cvstamp2datetime] GMT can't be greater than 12 or less than -12.");
+		return 0;
+	}
 	int year, month, day, hour, minute, second;
 	v_stamp2datetime(params[1], &year, &month, &day, &hour, &minute, &second, params[8]);
 	cell* addr[6] = { NULL, NULL, NULL, NULL, NULL };
@@ -180,28 +202,36 @@ static cell AMX_NATIVE_CALL n_getdayname(AMX *amx, cell *params)
 	amx_GetAddr(amx, params[4], &addr);
 	switch (dnumber)
 	{
-		case 0: amx_SetString(addr, "Sunday", 0, 0, params[4]);
-			break;
-		case 1: amx_SetString(addr, "Monday", 0, 0, params[4]);
-			break;
-		case 2: amx_SetString(addr, "Tuesday", 0, 0, params[4]);
-			break;
-		case 3: amx_SetString(addr, "Wednesday", 0, 0, params[4]);
-			break;
-		case 4: amx_SetString(addr, "Thursday", 0, 0, params[4]);
-			break;
-		case 5: amx_SetString(addr, "Friday", 0, 0, params[4]);
-			break;
-		case 6: amx_SetString(addr, "Saturday", 0, 0, params[4]);
-			break;
+	case 0: amx_SetString(addr, "Sunday", 0, 0, params[4]);
+		break;
+	case 1: amx_SetString(addr, "Monday", 0, 0, params[4]);
+		break;
+	case 2: amx_SetString(addr, "Tuesday", 0, 0, params[4]);
+		break;
+	case 3: amx_SetString(addr, "Wednesday", 0, 0, params[4]);
+		break;
+	case 4: amx_SetString(addr, "Thursday", 0, 0, params[4]);
+		break;
+	case 5: amx_SetString(addr, "Friday", 0, 0, params[4]);
+		break;
+	case 6: amx_SetString(addr, "Saturday", 0, 0, params[4]);
+		break;
 	}
 	return 1;
+}
+//native bool:isleapyear(year);
+static cell AMX_NATIVE_CALL n_isleapyear(AMX *amx, cell *params)
+{
+	if (params[1] == NULL) return 0;
+	cell* addr = NULL;
+	return c_IsLeapYear(params[1]);
 }
 AMX_NATIVE_INFO projectNatives[] =
 {
 	{ "cvstamp2datetime", n_cvstamp2datetime },
 	{ "cvdatetime2stamp", n_cvdatetime2stamp },
-	{"getdayname",  n_getdayname },
+	{ "getdayname",  n_getdayname },
+	{ "isleapyear",  n_isleapyear },
 	{ NULL, NULL }
 };
 PLUGIN_EXPORT int PLUGIN_CALL AmxLoad(AMX *amx)
